@@ -1,0 +1,57 @@
+apply plugin: 'com.android.application'
+
+android {
+    signingConfigs {
+        jeroshare {
+            keyAlias 'jeroshare'
+            def prop = new Properties()
+            def filepath = "local.properties"
+            def temp = new File(filepath)
+            println "====================${temp.absolutePath}========================"
+            prop.load(new FileInputStream(filepath))
+
+            def storePath = prop.getProperty("STORE_FILE")
+            def pwd = prop.getProperty("PWD")
+
+            println "====================pwd : ${pwd}========================"
+            storeFile file(storePath)
+            keyPassword pwd
+            storePassword pwd
+        }
+    }
+    compileSdkVersion setup.cSdk
+    buildToolsVersion setup.bTool
+
+    defaultConfig {
+        applicationId "cn.ijero.share.demo"
+        minSdkVersion setup.mSdk
+        targetSdkVersion setup.tSdk
+        versionCode setup.vCode
+        versionName setup.vName
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        signingConfig signingConfigs.jeroshare
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.jeroshare
+        }
+        debug {
+            signingConfig signingConfigs.jeroshare
+        }
+    }
+
+    productFlavors {
+    }
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    compile "com.android.support:appcompat-v7:${lib.support}"
+    testCompile 'junit:junit:4.12'
+    compile project(':jero-share-library')
+}

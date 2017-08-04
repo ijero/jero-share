@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">share-sdk-library</string>
+    <string name="str_qq_appid_notnull">qq的appid不能为空</string>
+    <string name="str_wechat_appid_notnnull">微信的appid不能为空</string>
+    <string name="str_load_image_error">此url无法获取图片</string>
+    <string name="str_weibo_share_failed">微博分享失败</string>
+</resources>
