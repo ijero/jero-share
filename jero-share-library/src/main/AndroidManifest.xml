@@ -8,7 +8,7 @@
         android:supportsRtl="true"
         >
 
-        <activity android:name="cn.ijero.share.ShareActivity"
+        <activity android:name="cn.ijero.share.ProxyActivity"
             android:theme="@style/NoAnimationStyle"/>
 
     </application>

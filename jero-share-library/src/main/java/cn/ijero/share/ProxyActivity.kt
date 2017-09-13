@@ -4,7 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.os.Bundle
-import cn.ijero.share.bean.ShareError
+import cn.ijero.share.bean.Error
+import cn.ijero.share.bean.QQLoginResult
 import cn.ijero.share.bean.ShareItem
 import cn.ijero.share.callback.*
 import cn.ijero.share.common.Config
@@ -17,6 +18,7 @@ import com.sina.weibo.sdk.share.WbShareCallback
 import com.sina.weibo.sdk.share.WbShareHandler
 import com.tencent.connect.share.QQShare
 import com.tencent.connect.share.QzoneShare
+import com.tencent.mm.opensdk.modelmsg.SendAuth
 import com.tencent.mm.opensdk.modelmsg.SendMessageToWX
 import com.tencent.mm.opensdk.modelmsg.WXMediaMessage
 import com.tencent.mm.opensdk.modelmsg.WXWebpageObject
@@ -27,20 +29,22 @@ import com.tencent.tauth.Tencent
 import com.tencent.tauth.UiError
 import org.jetbrains.anko.AnkoLogger
 import org.jetbrains.anko.error
+import org.json.JSONObject
 import java.net.URL
 import java.util.*
 import kotlin.concurrent.thread
 
 
-class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
-
+class ProxyActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
 
     companion object {
-        const val EXTRA_WECHAT_RESULT = "cn.ijero.share.ShareActivity.Companion,EXTRA_WECHAT_RESULT"
+        const val SNSAPI_SCOPE = "snsapi_userinfo"
+        const val WECHAT_STATE = "wechat_login"
+        const val EXTRA_WECHAT_RESULT = "cn.ijero.share.ProxyActivity.Companion,EXTRA_WECHAT_RESULT"
     }
 
     override fun onWbShareFail() {
-        setError(ShareError(ShareError.ERROR_WEIBO_ERROR, getString(R.string.str_weibo_share_failed), getString(R.string.str_weibo_share_failed)))
+        setError(Error(Error.ERROR_WEIBO_ERROR, getString(R.string.str_weibo_share_failed), getString(R.string.str_weibo_share_failed)))
     }
 
     override fun onWbShareCancel() {
@@ -51,19 +55,36 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
         setSuccess()
     }
 
-    private var curType: Long = TYPE_NONE
+    private var curType: Long = TypeValue.TYPE_NONE
     private var mTencent: Tencent? = null
     private var iwxapi: IWXAPI? = null
     private var wbShareHandler: WbShareHandler? = null
     override fun onComplete(p0: Any?) {
-        setSuccess()
+        setSuccessQQ(p0 as JSONObject)
+    }
+
+    private fun setSuccessQQ(jsonObject: JSONObject) {
+        val ret = jsonObject.getInt("ret")
+        val pay_token = jsonObject.getString("pay_token")
+        val pf = jsonObject.getString("pf")
+        val expires_in = jsonObject.getString("expires_in")
+        val openid = jsonObject.getString("openid")
+        val pfkey = jsonObject.getString("pfkey")
+        val msg = jsonObject.getString("msg")
+        val access_token = jsonObject.getString("access_token")
+        val result = QQLoginResult(ret, pay_token, pf, expires_in, openid, pfkey, msg, access_token)
+        val intent = buildIntent()
+        intent.putExtra(JeroShare.EXTRA_SHARE_TYPE, curType)
+        intent.putExtra(JeroShare.EXTRA_LOGINED_QQ, result)
+        setResult(ResultCode.RESULT_CODE_SUCCESS.toInt(), intent)
+        finishThis()
     }
 
     private fun setSuccess() {
         val intent = buildIntent()
         intent.putExtra(JeroShare.EXTRA_SHARE_TYPE, curType)
-        setResult(RESULT_CODE_SUCCESS.toInt(), intent)
-        finish()
+        setResult(ResultCode.RESULT_CODE_SUCCESS.toInt(), intent)
+        finishThis()
     }
 
     override fun onCancel() {
@@ -73,21 +94,21 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
     private fun setCancel() {
         val intent = buildIntent()
         intent.putExtra(JeroShare.EXTRA_SHARE_TYPE, curType)
-        setResult(RESULT_CODE_CANCEL.toInt(), intent)
-        finish()
+        setResult(ResultCode.RESULT_CODE_CANCEL.toInt(), intent)
+        finishThis()
     }
 
     override fun onError(p0: UiError) {
-        val error = ShareError(p0.errorCode, p0.errorMessage, p0.errorDetail)
+        val error = Error(p0.errorCode, p0.errorMessage, p0.errorDetail)
         setError(error)
     }
 
-    private fun setError(error: ShareError) {
+    private fun setError(error: Error) {
         val intent = buildIntent()
         intent.putExtra(JeroShare.EXTRA_SHARE_ERROR, error)
         intent.putExtra(JeroShare.EXTRA_SHARE_TYPE, curType)
-        setResult(RESULT_CODE_FAILED.toInt(), intent)
-        finish()
+        setResult(ResultCode.RESULT_CODE_FAILED.toInt(), intent)
+        finishThis()
     }
 
     private fun buildIntent(): Intent {
@@ -96,6 +117,7 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
         return intent
     }
 
+    private var qqAppid: String? = null
     private fun loadConfig() {
         val prop = Properties()
         try {
@@ -103,7 +125,7 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        val qqAppid = initTencentApi(prop)
+        qqAppid = initTencentApi(prop)
         val wxAppid = initWXApi(prop)
         val weiboAppKey = initWeibo(prop)
 
@@ -144,33 +166,68 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
         super.onCreate(savedInstanceState)
 
         loadConfig()
-        val type = intent.getLongExtra(JeroShare.EXTRA_SHARE_TYPE, TYPE_NONE)
-        val item = intent.getSerializableExtra(JeroShare.EXTRA_SHARE_ITEM) as ShareItem
 
+        val type = intent.getLongExtra(JeroShare.EXTRA_SHARE_TYPE, TypeValue.TYPE_NONE)
+        val item = intent.getSerializableExtra(JeroShare.EXTRA_SHARE_ITEM)
         when (type) {
-            TYPE_QQ -> {
-                shareToQQ(item)
+            TypeValue.TYPE_LOGIN_FOR_WE_CHAT -> {
+                loginForWeChat()
             }
-            TYPE_QQ_ZONE -> {
-                shareToQQZone(item)
+            TypeValue.TYPE_LOGIN_FOR_QQ -> {
+                loginForQQ()
             }
-            TYPE_WEI_BO -> {
-                shareToWeiBo(item)
+            TypeValue.TYPE_SHARE_QQ -> {
+                shareToQQ(item as ShareItem)
             }
-            TYPE_WECHAT -> {
-                shareToWeChat(item)
+            TypeValue.TYPE_SHARE_QQ_ZONE -> {
+                shareToQQZone(item as ShareItem)
             }
-            TYPE_WECHAT_CIRCLE -> {
-                shareToWeChat(item, false)
+            TypeValue.TYPE_SHARE_WEI_BO -> {
+                shareToWeiBo(item as ShareItem)
+            }
+            TypeValue.TYPE_SHARE_WECHAT -> {
+                shareToWeChat(item as ShareItem)
+            }
+            TypeValue.TYPE_SHARE_WECHAT_CIRCLE -> {
+                shareToWeChat(item as ShareItem, false)
             }
         }
     }
 
-    private fun shareToQQ(item: ShareItem) {
-        curType = TYPE_QQ
+    private fun loginForQQ() {
+        curType = TypeValue.TYPE_LOGIN_FOR_QQ
         if (mTencent == null) {
             error { getString(R.string.str_qq_appid_notnull) }
-            val error = ShareError(ShareError.ERROR_INVALID_APPID, ShareError.MSG_INVALID_APPID, getString(R.string.str_qq_appid_notnull))
+            val error = Error(Error.ERROR_INVALID_APPID, Error.MSG_INVALID_APPID, getString(R.string.str_qq_appid_notnull))
+            setError(error)
+            return
+        }
+        if (!mTencent!!.isSessionValid)
+            mTencent!!.login(this, qqAppid, this)
+    }
+
+    private fun loginForWeChat() {
+        curType = TypeValue.TYPE_LOGIN_FOR_WE_CHAT
+        if (iwxapi == null) {
+            error { getString(R.string.str_qq_appid_notnull) }
+            val error = Error(Error.ERROR_INVALID_APPID, Error.MSG_INVALID_APPID, getString(R.string.str_wechat_appid_notnnull))
+            setError(error)
+            return
+        }
+        val req = SendAuth.Req()
+        req.scope = SNSAPI_SCOPE
+        req.state = WECHAT_STATE
+        req.transaction = "${TypeValue.TYPE_LOGIN_FOR_WE_CHAT}"
+        iwxapi!!.sendReq(req)
+        // 微信会保留当前Activity，所以需要finish
+        finishThis()
+    }
+
+    private fun shareToQQ(item: ShareItem) {
+        curType = TypeValue.TYPE_SHARE_QQ
+        if (mTencent == null) {
+            error { getString(R.string.str_qq_appid_notnull) }
+            val error = Error(Error.ERROR_INVALID_APPID, Error.MSG_INVALID_APPID, getString(R.string.str_qq_appid_notnull))
             setError(error)
             return
         }
@@ -185,11 +242,11 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
         mTencent!!.shareToQQ(this, params, null)
     }
 
-    fun shareToQQZone(item: ShareItem) {
-        curType = TYPE_QQ_ZONE
+    private fun shareToQQZone(item: ShareItem) {
+        curType = TypeValue.TYPE_SHARE_QQ_ZONE
         if (mTencent == null) {
             error { getString(R.string.str_qq_appid_notnull) }
-            val error = ShareError(ShareError.ERROR_INVALID_APPID, ShareError.MSG_INVALID_APPID, getString(R.string.str_qq_appid_notnull))
+            val error = Error(Error.ERROR_INVALID_APPID, Error.MSG_INVALID_APPID, getString(R.string.str_qq_appid_notnull))
             setError(error)
             return
         }
@@ -206,10 +263,10 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
 
 
     private fun shareToWeiBo(item: ShareItem) {
-        curType = TYPE_WEI_BO
+        curType = TypeValue.TYPE_SHARE_WEI_BO
         if (wbShareHandler == null) {
             error { "微博appkey不能为空" }
-            val error = ShareError(ShareError.ERROR_INVALID_APPID, ShareError.MSG_INVALID_APPID, "微博appkey不能为空")
+            val error = Error(Error.ERROR_INVALID_APPID, Error.MSG_INVALID_APPID, "微博appkey不能为空")
             setError(error)
             return
         }
@@ -223,7 +280,7 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
                     val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                     if (bitmap == null) {
                         error { getString(R.string.str_load_image_error) }
-                        val error = ShareError(ShareError.ERROR_INVALID_IMAGE_URL, ShareError.MSG_INVALID_IMAGE_URL, getString(R.string.str_load_image_error))
+                        val error = Error(Error.ERROR_INVALID_IMAGE_URL, Error.MSG_INVALID_IMAGE_URL, getString(R.string.str_load_image_error))
                         setError(error)
                         return@thread
                     }
@@ -242,12 +299,12 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
     }
 
     private fun shareToWeChat(item: ShareItem, isToChat: Boolean = true) {
-        curType = if (isToChat) TYPE_WECHAT else TYPE_WECHAT_CIRCLE
+        curType = if (isToChat) TypeValue.TYPE_SHARE_WECHAT else TypeValue.TYPE_SHARE_WECHAT_CIRCLE
         when (iwxapi) {
             null -> {
                 error { getString(R.string.str_wechat_appid_notnnull) }
-                val error = ShareError(ShareError.ERROR_INVALID_APPID,
-                        ShareError.MSG_INVALID_APPID,
+                val error = Error(Error.ERROR_INVALID_APPID,
+                        Error.MSG_INVALID_APPID,
                         getString(R.string.str_wechat_appid_notnnull))
                 setError(error)
                 return
@@ -268,8 +325,8 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 if (bitmap == null) {
                     error { getString(R.string.str_load_image_error) }
-                    val error = ShareError(ShareError.ERROR_INVALID_IMAGE_URL,
-                            ShareError.MSG_INVALID_IMAGE_URL,
+                    val error = Error(Error.ERROR_INVALID_IMAGE_URL,
+                            Error.MSG_INVALID_IMAGE_URL,
                             getString(R.string.str_load_image_error))
                     setError(error)
                     return
@@ -283,12 +340,17 @@ class ShareActivity : Activity(), IUiListener, AnkoLogger, WbShareCallback {
         msg.description = item.summary
         val req = SendMessageToWX.Req()
         if (isToChat)
-            req.transaction = "$TYPE_WECHAT"
+            req.transaction = "${TypeValue.TYPE_SHARE_WECHAT}"
         else
-            req.transaction = "$TYPE_WECHAT_CIRCLE"
+            req.transaction = "${TypeValue.TYPE_SHARE_WECHAT_CIRCLE}"
         req.message = msg
         req.scene = if (isToChat) SendMessageToWX.Req.WXSceneSession else SendMessageToWX.Req.WXSceneTimeline
         iwxapi!!.sendReq(req)
+        // 微信会保留当前Activity，所以需要finish
+        finishThis()
+    }
+
+    private fun finishThis() {
         finish()
     }
 

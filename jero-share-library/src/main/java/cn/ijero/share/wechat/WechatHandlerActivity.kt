@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
 import cn.ijero.share.R
-import cn.ijero.share.callback.TYPE_WECHAT
 import cn.ijero.share.common.Config
 import cn.ijero.share.common.Key
 import com.tencent.mm.opensdk.modelbase.BaseReq
@@ -14,18 +13,45 @@ import com.tencent.mm.opensdk.modelbase.BaseResp
 import com.tencent.mm.opensdk.openapi.IWXAPI
 import com.tencent.mm.opensdk.openapi.IWXAPIEventHandler
 import com.tencent.mm.opensdk.openapi.WXAPIFactory
+import org.jetbrains.anko.AnkoLogger
+import org.jetbrains.anko.error
 import java.io.IOException
 import java.util.*
 
 /**
  * Created by Jero on 2017/8/4.
  */
-abstract class WechatHandlerActivity : Activity(), IWXAPIEventHandler {
+abstract class WechatHandlerActivity : Activity(), IWXAPIEventHandler, AnkoLogger {
 
-    abstract fun onSuccess(type: Long)
+    /**
+     * - type - 操作的类型，参考：[cn.ijero.share.callback.TypeValue.Type]
+     *
+     * - resp - 成功时的返回数据，参考：[com.tencent.mm.opensdk.modelbase.BaseResp]
+     *
+     * Created by Jero on 2017/9/13.
+     *
+     */
+    abstract fun onSuccess(type: Long, resp: BaseResp)
 
+    /**
+     * - type - 操作的类型，参考：[cn.ijero.share.callback.TypeValue.Type]
+     *
+     *
+     * - errorCode - 出错的代码，参考：[cn.ijero.share.callback.ResultCode.Companion.ResultCode]
+     *
+     *  - errorStr - 出错的描述，可能为null
+     *
+     * Created by Jero on 2017/9/13.
+     *
+     */
     abstract fun onFailed(type: Long, errorCode: Int, errorStr: String?)
 
+    /**
+     * - type - 操作的类型，参考：[cn.ijero.share.callback.TypeValue.Type]
+     *
+     * Created by Jero on 2017/9/13.
+     *
+     */
     abstract fun onCancel(type: Long)
 
     override fun onResp(resp: BaseResp) {
@@ -33,7 +59,7 @@ abstract class WechatHandlerActivity : Activity(), IWXAPIEventHandler {
         val errorCode = resp.errCode
         when (errorCode) {
             BaseResp.ErrCode.ERR_OK -> {
-                onSuccess(type)
+                onSuccess(type, resp)
             }
             BaseResp.ErrCode.ERR_USER_CANCEL -> {
                 onCancel(type)
@@ -46,7 +72,7 @@ abstract class WechatHandlerActivity : Activity(), IWXAPIEventHandler {
     }
 
     override fun onReq(req: BaseReq?) {
-
+        error { "onReq" }
     }
 
     private var iwxapi: IWXAPI? = null
@@ -78,6 +104,5 @@ abstract class WechatHandlerActivity : Activity(), IWXAPIEventHandler {
         this.intent = intent
         iwxapi?.handleIntent(intent, this)
     }
-
 
 }

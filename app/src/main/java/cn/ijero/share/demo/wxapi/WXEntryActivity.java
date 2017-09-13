@@ -1,8 +1,13 @@
 package cn.ijero.share.demo.wxapi;
 
-import org.jetbrains.anko.ToastsKt;
+import android.support.annotation.NonNull;
 
-import cn.ijero.share.callback.ShareTypedValue;
+import com.tencent.mm.opensdk.modelbase.BaseResp;
+
+import org.jetbrains.anko.ToastsKt;
+import org.jetbrains.annotations.NotNull;
+
+import cn.ijero.share.callback.TypeValue;
 import cn.ijero.share.wechat.WechatHandlerActivity;
 
 
@@ -13,32 +18,41 @@ import cn.ijero.share.wechat.WechatHandlerActivity;
 public class WXEntryActivity extends WechatHandlerActivity {
 
     @Override
-    public void onSuccess(long type) {
-        if (type == ShareTypedValue.TYPE_WECHAT) {
+    public void onSuccess(long type, @NonNull BaseResp resp) {
+        if (type == TypeValue.TYPE_SHARE_WECHAT) {
             ToastsKt.toast(this, "微信分享成功");
-        } else {
+        }else if (type == TypeValue.TYPE_LOGIN_FOR_WE_CHAT){
+            ToastsKt.toast(this, "微信登录成功");
+        }else if (type == TypeValue.TYPE_SHARE_WECHAT_CIRCLE){
             ToastsKt.toast(this, "微信朋友圈分享成功");
         }
-        finish();
     }
 
     @Override
     public void onFailed(long type, int errorCode, String errorStr) {
-        if (type == ShareTypedValue.TYPE_WECHAT) {
-            ToastsKt.toast(this, "微信分享失败");
-        } else {
-            ToastsKt.toast(this, "微信朋友圈分享失败");
+        if (type == TypeValue.TYPE_SHARE_WECHAT) {
+            ToastsKt.longToast(this, "微信分享出错 : " + errorCode + " , " + errorStr);
+        }else if (type == TypeValue.TYPE_LOGIN_FOR_WE_CHAT){
+            ToastsKt.longToast(this, "微信登录出错 : " + errorCode + " , " + errorStr);
+        }else if (type == TypeValue.TYPE_SHARE_WECHAT_CIRCLE){
+            ToastsKt.longToast(this, "微信朋友圈分享出错 : " + errorCode + " , " + errorStr);
         }
-        finish();
     }
 
     @Override
     public void onCancel(long type) {
-        if (type == ShareTypedValue.TYPE_WECHAT) {
+        if (type == TypeValue.TYPE_SHARE_WECHAT) {
             ToastsKt.toast(this, "微信分享取消");
-        } else {
+        }else if (type == TypeValue.TYPE_LOGIN_FOR_WE_CHAT){
+            ToastsKt.toast(this, "微信登录取消");
+        }else if (type == TypeValue.TYPE_SHARE_WECHAT_CIRCLE){
             ToastsKt.toast(this, "微信朋友圈分享取消");
         }
-        finish();
+    }
+
+    @NotNull
+    @Override
+    public String getLoggerTag() {
+        return this.getClass().getCanonicalName();
     }
 }

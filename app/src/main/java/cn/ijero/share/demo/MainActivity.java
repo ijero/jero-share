@@ -8,13 +8,14 @@ import android.view.View;
 import org.jetbrains.anko.ToastsKt;
 
 import cn.ijero.share.JeroShare;
-import cn.ijero.share.bean.ShareError;
+import cn.ijero.share.bean.Error;
+import cn.ijero.share.bean.QQLoginResult;
 import cn.ijero.share.bean.ShareItem;
-import cn.ijero.share.callback.OnShareCallbackListener;
-import cn.ijero.share.callback.ShareResultCodeValue;
-import cn.ijero.share.callback.ShareTypedValue;
+import cn.ijero.share.callback.OnCallbackListener;
+import cn.ijero.share.callback.ResultCode;
+import cn.ijero.share.callback.TypeValue;
 
-public class MainActivity extends AppCompatActivity implements OnShareCallbackListener {
+public class MainActivity extends AppCompatActivity implements OnCallbackListener {
 
     private String link = "https://github.com/ijero/jero-share";
     private String image = "https://raw.githubusercontent.com/ijero/jero-share/develop/imgs/logo.png";
@@ -43,23 +44,23 @@ public class MainActivity extends AppCompatActivity implements OnShareCallbackLi
     }
 
     public void weibo(View view) {
-        jeroShare.share(ShareTypedValue.TYPE_WEI_BO, shareItem);
+        jeroShare.share(TypeValue.TYPE_SHARE_WEI_BO, shareItem);
     }
 
     public void wechat_circle(View view) {
-        jeroShare.share(ShareTypedValue.TYPE_WECHAT_CIRCLE, shareItem);
+        jeroShare.share(TypeValue.TYPE_SHARE_WECHAT_CIRCLE, shareItem);
     }
 
     public void wechat(View view) {
-        jeroShare.share(ShareTypedValue.TYPE_WECHAT, shareItem);
+        jeroShare.share(TypeValue.TYPE_SHARE_WECHAT, shareItem);
     }
 
     public void qzone(View view) {
-        jeroShare.share(ShareTypedValue.TYPE_QQ_ZONE, shareItem);
+        jeroShare.share(TypeValue.TYPE_SHARE_QQ_ZONE, shareItem);
     }
 
     public void qq(View view) {
-        jeroShare.share(ShareTypedValue.TYPE_QQ, shareItem);
+        jeroShare.share(TypeValue.TYPE_SHARE_QQ, shareItem);
     }
 
     @Override
@@ -68,58 +69,56 @@ public class MainActivity extends AppCompatActivity implements OnShareCallbackLi
         jeroShare.handleResult(requestCode, resultCode, data, this);
     }
 
+
     @Override
-    public void onCallback(long type, long resultCode, ShareError shareError) {
-        if (type == ShareTypedValue.TYPE_QQ) {
-            handleQQResult(resultCode, shareError);
-        } else if (type == ShareTypedValue.TYPE_QQ_ZONE) {
-            handleQZoneResult(resultCode, shareError);
-        } else if (type == ShareTypedValue.TYPE_WEI_BO) {
-            handleWeiBo(resultCode, shareError);
-        } else if (type == ShareTypedValue.TYPE_SMS) {
-            handleSms(resultCode, shareError);
+    public void onCallback(long type, long resultCode, Error error, QQLoginResult qqLoginResult) {
+        if (type == TypeValue.TYPE_SHARE_QQ) {
+            handleQQShareResult(resultCode, error);
+        } else if (type == TypeValue.TYPE_LOGIN_FOR_QQ) {
+            handleQQLoginResult(resultCode, error, qqLoginResult);
+        } else if (type == TypeValue.TYPE_SHARE_QQ_ZONE) {
+            handleQQZoneShareResult(resultCode, error);
         }
+
     }
 
-    private void handleSms(long resultCode, ShareError shareError) {
-        if (resultCode == ShareResultCodeValue.RESULT_CODE_CANCEL) {
-            ToastsKt.toast(this, "短信分享取消");
-        } else if (resultCode == ShareResultCodeValue.RESULT_CODE_FAILED) {
-            ToastsKt.toast(this, "短信分享出错！\n" + shareError);
+    private void handleQQZoneShareResult(long resultCode, Error error) {
+        if (resultCode == ResultCode.RESULT_CODE_CANCEL) {
+            ToastsKt.toast(this, "QQ空间分享取消");
+        } else if (resultCode == ResultCode.RESULT_CODE_FAILED) {
+            ToastsKt.longToast(this, "QQ空间分享出错，出错信息：" + error.toString());
         } else {
-            ToastsKt.toast(this, "短信分享成功");
+            ToastsKt.toast(this, "QQ空间分享成功");
         }
     }
 
-    private void handleWeiBo(long resultCode, ShareError shareError) {
-        if (resultCode == ShareResultCodeValue.RESULT_CODE_CANCEL) {
-            ToastsKt.toast(this, "微博分享取消");
-        } else if (resultCode == ShareResultCodeValue.RESULT_CODE_FAILED) {
-            ToastsKt.toast(this, "微博分享出错！\n" + shareError);
+    private void handleQQLoginResult(long resultCode, Error error, QQLoginResult qqLoginResult) {
+        if (resultCode == ResultCode.RESULT_CODE_CANCEL) {
+            ToastsKt.toast(this, "QQ登录取消");
+        } else if (resultCode == ResultCode.RESULT_CODE_FAILED) {
+            ToastsKt.longToast(this, "QQ登录出错，出错信息：" + error.toString());
         } else {
-            ToastsKt.toast(this, "微博分享成功");
+            ToastsKt.toast(this, "QQ登录成功" + qqLoginResult.toString());
         }
     }
 
-    private void handleQQResult(long resultCode, ShareError shareError) {
-        if (resultCode == ShareResultCodeValue.RESULT_CODE_CANCEL) {
-            ToastsKt.toast(this, "qq分享取消");
-        } else if (resultCode == ShareResultCodeValue.RESULT_CODE_FAILED) {
-            ToastsKt.toast(this, "qq分享出错！\n" + shareError);
+    private void handleQQShareResult(long resultCode, Error error) {
+        if (resultCode == ResultCode.RESULT_CODE_CANCEL) {
+            ToastsKt.toast(this, "QQ分享取消");
+        } else if (resultCode == ResultCode.RESULT_CODE_FAILED) {
+            ToastsKt.longToast(this, "QQ分享出错，出错信息：" + error.toString());
         } else {
-            ToastsKt.toast(this, "qq分享成功");
-        }
-    }
-
-    private void handleQZoneResult(long resultCode, ShareError shareError) {
-        if (resultCode == ShareResultCodeValue.RESULT_CODE_CANCEL) {
-            ToastsKt.toast(this, "qq空间分享取消");
-        } else if (resultCode == ShareResultCodeValue.RESULT_CODE_FAILED) {
-            ToastsKt.toast(this, "qq空间分享出错！\n" + shareError);
-        } else {
-            ToastsKt.toast(this, "qq空间分享成功");
+            ToastsKt.toast(this, "QQ分享成功");
         }
     }
 
 
+    public void loginForQQ(View view) {
+        jeroShare.login(TypeValue.TYPE_LOGIN_FOR_QQ);
+    }
+
+    public void loginForWechat(View view) {
+        jeroShare.login(TypeValue.TYPE_LOGIN_FOR_WE_CHAT);
+
+    }
 }

@@ -5,13 +5,13 @@ import java.io.Serializable
 /**
  * 分享出错时的信息包装类。
  *
- * - [code] - 出错的code。
- * - [message] - 出错的信息。
- * - [detail] - 出错的详情。
+ * - code - 出错的code。
+ * - message - 出错的信息。
+ * - detail - 出错的详情。
  *
  * Created by Jero on 2017/7/31.
  */
-data class ShareError(val code: Int = -1, val message: String? = null, val detail: String? = null) : Serializable {
+data class Error(val code: Int = -1, val message: String? = null, val detail: String? = null) : Serializable {
     companion object {
         // =========QQ原有状态=======
         const val ERROR_IO = -2
@@ -42,13 +42,26 @@ data class ShareError(val code: Int = -1, val message: String? = null, val detai
 /**
  * 分享包装类。
  *
- * - [title] - 分享的标题，必须。
- * - [summary] - 分享的描述，非必须（可为null）。
- * - [targetUrl] - 目标url，必须。
- * - [imageUrl] - 分享的图片url，非必须（可为null）。
+ * - title - 分享的标题，必须。
+ * - summary - 分享的描述，非必须（可为null）。
+ * - targetUrl - 目标url，必须。
+ * - imageUrl - 分享的图片url，非必须（可为null）。
  *
  * Created by Jero on 2017/8/1.
  *
  */
 data class ShareItem(val title: String, val summary: String? = null,
                      val targetUrl: String, val imageUrl: String? = null) : Serializable
+
+data class QQLoginResult
+@JvmOverloads
+constructor(
+        val ret: Int = 0,
+        val pay_token: String?,
+        val pf: String?,
+        val expires_in: String?,
+        val openid: String?,
+        val pfkey: String?,
+        val msg: String?,
+        val access_token: String?
+) : Serializable
